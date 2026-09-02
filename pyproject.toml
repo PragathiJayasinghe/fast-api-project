@@ -1,0 +1,24 @@
+[project]
+name = "fast-api-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "PragathiJayasinghe", email = "pragathijayasinghe28@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "fastapi>=0.141.1",
+    "fastapi-users[sqlalchemy]>=15.0.5",
+    "imagekitio>=5.9.0",
+    "python-dotenv>=1.2.3",
+    "uvicorn[standard]>=0.52.4",
+]
+
+[project.scripts]
+fast-api-project = "fast_api_project:main"
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
