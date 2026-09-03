@@ -12,3 +12,7 @@ wheels/
 # Environment variables
 .env
 
+
+test.db
+
+test.db
