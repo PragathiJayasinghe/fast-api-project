@@ -38,31 +38,34 @@ async def upload_file(
             temp_file_path = temp_file.name
             shutil.copyfileobj(file.file, temp_file)
 
-        upload_result = imagekit.upload_file(
-            file=open(temp_file_path, "rb"),
-            file_name=file.filename,
-            use_unique_file_name=True,
-            tags=["backend-upload"]
-        )
-
-        if upload_result.response_metadata.http_status_code == 200:
-            post = Post(
-                user_id=user.id,
-                caption=caption,
-                url=upload_result.url,
-                file_type="video" if file.content_type.startswith("video/") else "image",
-                file_name=upload_result.name
+        with open(temp_file_path, "rb") as f:
+            upload_result = imagekit.files.upload(
+                file=f,
+                file_name=file.filename,
+                use_unique_file_name=True,
+                tags=["backend-upload"]
             )
-            session.add(post)
-            await session.commit()
-            await session.refresh(post)
-            return post
+
+        post = Post(
+            user_id=user.id,
+            caption=caption,
+            url=upload_result.url,
+            file_type="video" if (file.content_type and file.content_type.startswith("video/")) else "image",
+            file_name=upload_result.name
+        )
+        session.add(post)
+        await session.commit()
+        await session.refresh(post)
+        return post
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+            try:
+                os.unlink(temp_file_path)
+            except OSError:
+                pass
         file.file.close()
 
 @app.get("/feed")
@@ -71,14 +74,15 @@ async def get_feed(
     user: User = Depends(current_active_user),
 ):
     result = await session.execute(select(Post).order_by(Post.created_at.desc()))
-    posts = [row[0] for row in result.all()]
+    posts = result.scalars().all()
 
-    result = await session.execute(select(User))
-    users = [row[0] for row in result.all()]
+    result_users = await session.execute(select(User))
+    users = result_users.scalars().all()
     user_dict = {u.id: u.email for u in users}
 
     posts_data = []
     for post in posts:
+        created_at_str = post.created_at.isoformat() if hasattr(post.created_at, "isoformat") else str(post.created_at or "")
         posts_data.append(
             {
                 "id": str(post.id),
@@ -87,7 +91,7 @@ async def get_feed(
                 "url": post.url,
                 "file_type": post.file_type,
                 "file_name": post.file_name,
-                "created_at": post.created_at.isoformat(),
+                "created_at": created_at_str,
                 "is_owner": post.user_id == user.id,
                 "email": user_dict.get(post.user_id, "Unknown")
             }
